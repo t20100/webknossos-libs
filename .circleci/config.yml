@@ -28,7 +28,7 @@ jobs:
               --entrypoint "/bin/bash" \
               -w "/" \
               scalableminds/webknossos-cuber:${CIRCLE_BUILD_NUM} \
-              -c "black --check /app/wkcuber"
+              -c "black --check /app/wkcuber /app/tests /app/examples"
 
       - run:
           name: Python tests
