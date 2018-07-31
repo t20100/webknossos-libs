@@ -100,7 +100,7 @@ def download_files(batch):
     return coords
 
 
-def buffer_tiles(batch, xy_batch):
+def buffer_tiles(batch, xy_batch, i):
     ref_time = time()
     buffer = defaultdict(lambda: np.zeros((1024, 1024, args.batch_z), dtype=np.uint8))
     for z in batch:
@@ -126,7 +126,7 @@ def buffer_tiles(batch, xy_batch):
     return buffer
 
 
-def write_buffers(buffer):
+def write_buffers(buffer, i):
     ref_time = time()
     # Write buffer to WKW file
     with wkw.Dataset.open(args.target_path, wkw.Header(np.uint8)) as ds:
@@ -154,8 +154,8 @@ for batch in get_regular_chunks(args.start, args.end, args.batch_z):
 
     xy_coords = sorted(set([(x, y) for x, y, z in coords]))
     for i, xy_batch in enumerate(get_chunks(xy_coords, args.batch_xy)):
-        buffer = buffer_tiles(batch, xy_batch)
-        write_buffers(buffer)
+        buffer = buffer_tiles(batch, xy_batch, i)
+        write_buffers(buffer, i)
 
     if args.clear_files:
         truncate_folder(CACHE_DIR)
