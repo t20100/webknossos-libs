@@ -19,7 +19,7 @@ from wkcuber.utils import get_regular_chunks, get_chunks
 from wkcuber.tile_cubing import parse_tile_file_name
 
 BUFFER_SIZE = 1024 * 1024
-BATCH_Z = 8
+BATCH_Z = 1024
 CACHE_DIR = "./tmp"
 
 CoordInfo = namedtuple("CoordInfo", ["x", "y", "z", "ext", "offset", "size"])
