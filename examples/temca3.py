@@ -65,12 +65,19 @@ def detect_coords(z):
 
 with wkw.Dataset.open(args.target_path, wkw.Header(np.uint8)) as ds:
     for batch in get_regular_chunks(args.start, args.end, BATCH_Z):
+        ref_time = time()
         coords = []
         for z in batch:
             coords += sorted(detect_coords(z))
 
         xy_coords = sorted(set([(tup.x, tup.y) for tup in coords]))
         coord_map = {(tup.x, tup.y, tup.z): tup for tup in coords}
+
+        logging.debug(
+            "Detecting tile_count={} xy_count={} took {:.8f}s".format(
+                len(coords), len(xy_coords), time() - ref_time
+            )
+        )
 
         for i, (x, y) in enumerate(xy_coords):
             ref_time = time()
@@ -79,11 +86,7 @@ with wkw.Dataset.open(args.target_path, wkw.Header(np.uint8)) as ds:
             if len(z_batch) == 0:
                 continue
 
-            logging.debug(
-                "Stuff took {:.8f}s".format(
-                    time() - ref_time
-                )
-            )
+            logging.debug("Stuff took {:.8f}s".format(time() - ref_time))
 
             ref_time = time()
             buffer = np.zeros((1024, 1024, BATCH_Z), dtype=np.uint8)
