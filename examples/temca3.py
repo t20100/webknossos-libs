@@ -63,40 +63,42 @@ def detect_coords(z):
             # logging.debug("Found x={} y={} z={}".format(x, y, z))
 
 
-def find_coord(x, y, z, coords):
-    for tup in coords:
-        if tup.x == x and tup.y == y and tup.z == z:
-            return tup
-    return None
+with wkw.Dataset.open(args.target_path, wkw.Header(np.uint8)) as ds:
+    for batch in get_regular_chunks(args.start, args.end, BATCH_Z):
+        coords = []
+        for z in batch:
+            coords += sorted(detect_coords(z))
 
+        xy_coords = sorted(set([(tup.x, tup.y) for tup in coords]))
+        coord_map = {(tup.x, tup.y, tup.z): tup for tup in coords}
 
-for batch in get_regular_chunks(args.start, args.end, BATCH_Z):
-    coords = []
-    for z in batch:
-        coords += sorted(detect_coords(z))
+        for i, (x, y) in enumerate(xy_coords):
+            ref_time = time()
+            z_batch = [z for z in batch if (x, y, z) in coord_map]
 
-    xy_coords = sorted(set([(tup.x, tup.y) for tup in coords]))
-    for i, (x, y) in enumerate(xy_coords):
-        z_batch = [z for z in batch if find_coord(x, y, z, coords) is not None]
+            if len(z_batch) == 0:
+                continue
 
-        if len(z_batch) == 0:
-            continue
-
-        ref_time = time()
-        buffer = np.zeros((1024, 1024, BATCH_Z), dtype=np.uint8)
-        for z in z_batch:
-            tup = find_coord(x, y, z, coords)
-            buffer[:, :, z - batch[0]] = read_image_from_tar(
-                x, y, z, tup.offset, tup.size
+            logging.debug(
+                "Stuff took {:.8f}s".format(
+                    time() - ref_time
+                )
             )
-            logging.debug("Buffered x={} y={} z={}".format(x, y, z))
-        logging.debug(
-            "Buffering x={} y={} z={} {}/{} took {:.8f}s".format(
-                x, y, batch[0], i, len(xy_coords), time() - ref_time
-            )
-        )
 
-        with wkw.Dataset.open(args.target_path, wkw.Header(np.uint8)) as ds:
+            ref_time = time()
+            buffer = np.zeros((1024, 1024, BATCH_Z), dtype=np.uint8)
+            for z in z_batch:
+                tup = coord_map[(x, y, z)]
+                buffer[:, :, z - batch[0]] = read_image_from_tar(
+                    x, y, z, tup.offset, tup.size
+                )
+                logging.debug("Buffered x={} y={} z={}".format(x, y, z))
+            logging.debug(
+                "Buffering x={} y={} z={} {}/{} took {:.8f}s".format(
+                    x, y, batch[0], i, len(xy_coords), time() - ref_time
+                )
+            )
+
             ref_time = time()
             ds.write((x * 1024, y * 1024, batch[0]), buffer)
             logging.debug(
