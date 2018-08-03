@@ -5,21 +5,24 @@ import requests
 import tarfile
 import logging
 import gc
+import io
 import shutil
 
 from time import time
 from PIL import Image
 from io import BytesIO, StringIO
 from argparse import ArgumentParser
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from os import path, listdir, unlink
 
 from wkcuber.utils import get_regular_chunks, get_chunks
 from wkcuber.tile_cubing import parse_tile_file_name
 
 BUFFER_SIZE = 1024 * 1024
-BATCH_Z = 1024
+BATCH_Z = 8
 CACHE_DIR = "./tmp"
+
+CoordInfo = namedtuple("CoordInfo", ["x", "y", "z", "ext", "offset", "size"])
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -41,35 +44,40 @@ def read_image(file, dtype=np.uint8):
     return this_layer
 
 
-def read_image_from_tar(x, y, z):
+def read_image_from_tar(x, y, z, offset, size):
     file_name = tar_filename(z)
-    tar = tarfile.open(file_name, bufsize=BUFFER_SIZE)
-    tarinfo = tar.getmember("0/{}/{}/{}.jpg".format(z + 1, y, x))
-    with tar.extractfile(tarinfo) as reader:
-        return read_image(reader)
+    with open(file_name, "rb") as f:
+        f.seek(offset)
+        b = f.read(size)
+        return read_image(io.BytesIO(b))
 
 
 def detect_coords(z):
-    coords = []
     file_name = path.join(CACHE_DIR, "{:04d}.tar".format(z))
     tar = tarfile.open(file_name, bufsize=BUFFER_SIZE)
     for tarinfo in tar:
         if tarinfo.name.startswith("0/") and tarinfo.name.endswith(".jpg"):
             # Decoding image and writing to buffer
             y, x, ext = parse_tile_file_name(tarinfo.name)
-            coords.append((x, y, z))
+            yield CoordInfo(x, y, z, ext, tarinfo.offset_data, tarinfo.size)
             # logging.debug("Found x={} y={} z={}".format(x, y, z))
-    return coords
+
+
+def find_coord(x, y, z, coords):
+    for tup in coords:
+        if tup.x == x and tup.y == y and tup.z == z:
+            return tup
+    return None
 
 
 for batch in get_regular_chunks(args.start, args.end, BATCH_Z):
     coords = []
     for z in batch:
-        coords += detect_coords(z)
+        coords += sorted(detect_coords(z))
 
-    xy_coords = sorted(set([(x, y) for x, y, z in coords]))
-    for x, y in xy_coords:
-        z_batch = [z for z in batch if (x, y, z) in coords]
+    xy_coords = sorted(set([(tup.x, tup.y) for tup in coords]))
+    for i, (x, y) in enumerate(xy_coords):
+        z_batch = [z for z in batch if find_coord(x, y, z, coords) is not None]
 
         if len(z_batch) == 0:
             continue
@@ -77,11 +85,14 @@ for batch in get_regular_chunks(args.start, args.end, BATCH_Z):
         ref_time = time()
         buffer = np.zeros((1024, 1024, BATCH_Z), dtype=np.uint8)
         for z in z_batch:
-            buffer[:, :, z - batch[0]] = read_image_from_tar(x, y, z)
+            tup = find_coord(x, y, z, coords)
+            buffer[:, :, z - batch[0]] = read_image_from_tar(
+                x, y, z, tup.offset, tup.size
+            )
             logging.debug("Buffered x={} y={} z={}".format(x, y, z))
         logging.debug(
-            "Buffering x={} y={} z={} took {:.8f}s".format(
-                x, y, batch[0], time() - ref_time
+            "Buffering x={} y={} z={} {}/{} took {:.8f}s".format(
+                x, y, batch[0], i, len(xy_coords), time() - ref_time
             )
         )
 
@@ -89,7 +100,7 @@ for batch in get_regular_chunks(args.start, args.end, BATCH_Z):
             ref_time = time()
             ds.write((x * 1024, y * 1024, batch[0]), buffer)
             logging.debug(
-                "Writing x={} y={} z={} shape={} took {:.8f}s".format(
-                    x, y, batch[0], buffer.shape, time() - ref_time
+                "Writing x={} y={} z={} shape={} {}/{} took {:.8f}s".format(
+                    x, y, batch[0], buffer.shape, i, len(xy_coords), time() - ref_time
                 )
             )
