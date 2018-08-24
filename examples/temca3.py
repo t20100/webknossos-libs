@@ -76,7 +76,8 @@ with wkw.Dataset.open(args.tmp_path, wkw.Header(np.uint8)) as ds:
         ref_time = time()
         coords = []
         for z in batch:
-            coords += sorted(detect_coords(z))
+            if z < args.end:
+                coords += sorted(detect_coords(z))
 
         xy_coords = sorted(set([(tup.x, tup.y) for tup in coords]))
         coord_map = {(tup.x, tup.y, tup.z): tup for tup in coords}
