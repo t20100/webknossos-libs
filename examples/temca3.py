@@ -13,7 +13,7 @@ from PIL import Image
 from io import BytesIO, StringIO
 from argparse import ArgumentParser
 from collections import defaultdict, namedtuple
-from os import path, listdir, unlink
+from os import path, listdir, unlink, makedirs
 
 from wkcuber.utils import get_regular_chunks, get_chunks
 from wkcuber.tile_cubing import parse_tile_file_name
@@ -30,6 +30,7 @@ parser = ArgumentParser()
 parser.add_argument("start", type=int)
 parser.add_argument("end", type=int)
 parser.add_argument("target_path")
+parser.add_argument("tmp_path")
 
 args = parser.parse_args()
 
@@ -63,7 +64,14 @@ def detect_coords(z):
             # logging.debug("Found x={} y={} z={}".format(x, y, z))
 
 
-with wkw.Dataset.open(args.target_path, wkw.Header(np.uint8)) as ds:
+def create_compressed_dataset(_path):
+    header = wkw.Header(np.uint8)
+    header.block_type = wkw.Header.BLOCK_TYPE_LZ4HC
+    ds = wkw.Dataset.open(_path, header)
+    ds.close()
+
+
+with wkw.Dataset.open(args.tmp_path, wkw.Header(np.uint8)) as ds:
     for batch in get_regular_chunks(args.start, args.end, BATCH_Z):
         ref_time = time()
         coords = []
@@ -104,6 +112,25 @@ with wkw.Dataset.open(args.target_path, wkw.Header(np.uint8)) as ds:
 
             ref_time = time()
             ds.write((x * 1024, y * 1024, batch[0]), buffer)
+
+            wkw_cube_file_name = path.join(
+                args.target_path,
+                "z{}".format(batch[0]),
+                "y{}".format(y),
+                "x{}.wkw".format(x),
+            )
+            wkw_tmp_file_name = path.join(
+                args.tmp_path,
+                "z{}".format(batch[0]),
+                "y{}".format(y),
+                "x{}.wkw".format(x),
+            )
+
+            create_compressed_dataset(args.target_path)
+            makedirs(path.dirname(wkw_cube_file_name))
+            wkw.File.compress(wkw_tmp_file_name, wkw_cube_file_name)
+            unlink(wkw_tmp_file_name)
+
             logging.debug(
                 "Writing x={} y={} z={} shape={} {}/{} took {:.8f}s".format(
                     x, y, batch[0], buffer.shape, i, len(xy_coords), time() - ref_time
