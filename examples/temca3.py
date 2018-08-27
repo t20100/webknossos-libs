@@ -116,19 +116,21 @@ with wkw.Dataset.open(args.tmp_path, wkw.Header(np.uint8)) as ds:
 
             wkw_cube_file_name = path.join(
                 args.target_path,
-                "z{}".format(batch[0]),
+                "z{}".format(batch[0] // 1024),
                 "y{}".format(y),
                 "x{}.wkw".format(x),
             )
             wkw_tmp_file_name = path.join(
                 args.tmp_path,
-                "z{}".format(batch[0]),
+                "z{}".format(batch[0] // 1024),
                 "y{}".format(y),
                 "x{}.wkw".format(x),
             )
 
             create_compressed_dataset(args.target_path)
-            makedirs(path.dirname(wkw_cube_file_name))
+            makedirs(path.dirname(wkw_cube_file_name), exist_ok=True)
+            if path.exists(wkw_cube_file_name):
+                unlink(wkw_cube_file_name)
             wkw.File.compress(wkw_tmp_file_name, wkw_cube_file_name)
             unlink(wkw_tmp_file_name)
 
