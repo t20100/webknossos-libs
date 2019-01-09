@@ -35,9 +35,9 @@ def download_bucket(prefix, scale_key, offset, bucket_size):
 def download_cube(dataset_path, prefix, scale_key, offset, bucket_size):
     logging.info("Downloading cube={}".format(offset))
     cube_buffer = np.zeros((CUBE_SIZE, CUBE_SIZE, CUBE_SIZE), dtype=np.uint8)
-    for x in range(CUBE_SIZE // bucket_size[0] // 2):
-        for y in range(CUBE_SIZE // bucket_size[1] // 2):
-            for z in range(CUBE_SIZE // bucket_size[2] // 2):
+    for x in range(CUBE_SIZE // bucket_size[0]):
+        for y in range(CUBE_SIZE // bucket_size[1]):
+            for z in range(CUBE_SIZE // bucket_size[2]):
                 bucket_offset = (
                     offset[0] + x * bucket_size[0],
                     offset[1] + y * bucket_size[1],
@@ -79,10 +79,10 @@ if __name__ == "__main__":
     )
     ds.close()
 
-    with ParallelExecutor(4) as exec:
-        for cube_x in range(121, 122):  # dataset_size[0] // CUBE_SIZE):
-            for cube_y in range(65, 66):  # dataset_size[1] // CUBE_SIZE):
-                for cube_z in range(3, 4):  # dataset_size[2] // CUBE_SIZE):
+    with ParallelExecutor(8) as exec:
+        for cube_x in range(dataset_size[0] // CUBE_SIZE):
+            for cube_y in range(dataset_size[1] // CUBE_SIZE):
+                for cube_z in range(dataset_size[2] // CUBE_SIZE):
                     exec.submit(
                         download_cube,
                         target_path,
