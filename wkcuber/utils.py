@@ -124,4 +124,4 @@ def time_start(identifier):
 
 def time_stop(identifier):
     _time = times.pop(identifier)
-    logging.debug("{} took {:.8f}s".format(identifier, time.time() - _time))
+    logging.info("{} took {:.8f}s".format(identifier, time.time() - _time))

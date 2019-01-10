@@ -7,7 +7,7 @@ import wkw
 import numpy as np
 import json
 import sys
-from wkcuber.utils import ParallelExecutor
+from wkcuber.utils import ParallelExecutor, time_start, time_stop
 import logging
 
 CUBE_SIZE = 1024
@@ -34,10 +34,11 @@ def download_bucket(prefix, scale_key, offset, bucket_size):
 
 def download_cube(dataset_path, prefix, scale_key, offset, bucket_size):
     logging.info("Downloading cube={}".format(offset))
+    time_start("Done cube={}".format(offset))
     cube_buffer = np.zeros((CUBE_SIZE, CUBE_SIZE, CUBE_SIZE), dtype=np.uint8)
-    for x in range(CUBE_SIZE // bucket_size[0]):
-        for y in range(CUBE_SIZE // bucket_size[1]):
-            for z in range(CUBE_SIZE // bucket_size[2]):
+    for x in range(CUBE_SIZE // bucket_size[0] // 2):
+        for y in range(CUBE_SIZE // bucket_size[1] // 2):
+            for z in range(CUBE_SIZE // bucket_size[2] // 2):
                 bucket_offset = (
                     offset[0] + x * bucket_size[0],
                     offset[1] + y * bucket_size[1],
@@ -49,9 +50,9 @@ def download_cube(dataset_path, prefix, scale_key, offset, bucket_size):
                     (y * bucket_size[1]) : (y * bucket_size[1] + bucket_size[1]),
                     (z * bucket_size[2]) : (z * bucket_size[2] + bucket_size[2]),
                 ] = buf
-                logging.info(
-                    "Downloaded bucket={} in cube={}".format(bucket_offset, offset)
-                )
+                # logging.info(
+                #     "Downloaded bucket={} in cube={}".format(bucket_offset, offset)
+                # )
 
     if np.all(cube_buffer == 0):
         logging.info("Skipping empty cube={}".format(offset))
@@ -59,7 +60,7 @@ def download_cube(dataset_path, prefix, scale_key, offset, bucket_size):
 
     with wkw.Dataset.open(dataset_path) as ds:
         ds.write(offset, cube_buffer)
-    logging.info("Written cube={}".format(offset))
+    time_stop("Done cube={}".format(offset))
 
 
 if __name__ == "__main__":
@@ -72,6 +73,8 @@ if __name__ == "__main__":
     dataset_bucket_size = dataset_info["scales"][0]["chunk_sizes"][0]
 
     target_path = sys.argv[2]
+    with open(sys.argv[3], "rt") as cube_file:
+      cubes = sorted(json.load(cube_file))
 
     ds = wkw.Dataset.open(
         target_path,
@@ -79,15 +82,13 @@ if __name__ == "__main__":
     )
     ds.close()
 
-    with ParallelExecutor(8) as exec:
-        for cube_x in range(dataset_size[0] // CUBE_SIZE):
-            for cube_y in range(dataset_size[1] // CUBE_SIZE):
-                for cube_z in range(dataset_size[2] // CUBE_SIZE):
-                    exec.submit(
-                        download_cube,
-                        target_path,
-                        dataset_url,
-                        dataset_scale_key,
-                        (cube_x * CUBE_SIZE, cube_y * CUBE_SIZE, cube_z * CUBE_SIZE),
-                        dataset_bucket_size,
-                    )
+    with ParallelExecutor(200) as exec:
+        for (cube_x, cube_y, cube_z) in cubes:
+            exec.submit(
+                download_cube,
+                target_path,
+                dataset_url,
+                dataset_scale_key,
+                (cube_x * CUBE_SIZE, cube_y * CUBE_SIZE, cube_z * CUBE_SIZE),
+                dataset_bucket_size,
+            )
