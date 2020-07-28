@@ -77,14 +77,14 @@ def create_parser():
         "-f",
         help="Resolution to base upsampling on",
         type=str,
-        required=True
+        required=True,
     )
 
     parser.add_argument(
         "--target_mag",
         help="Specify an explicit  target magnification (e.g., --target_mag 16-16-4).",
         type=str,
-        required=True
+        required=True,
     )
 
     parser.add_argument(
@@ -291,6 +291,7 @@ def upsample_cube_job(args):
         logging.error("Upsampling of {} failed with {}".format(target_cube_xyz, exc))
         raise exc
 
+
 def linear_filter_3d(data, factors, order):
     factors = np.array(factors)
 
@@ -369,13 +370,14 @@ def parse_interpolation_mode(interpolation_mode, layer_name):
     else:
         return InterpolationModes[interpolation_mode.upper()]
 
+
 if __name__ == "__main__":
     args = create_parser().parse_args()
     setup_logging(args)
 
     source_mag = Mag(args.from_mag)
     target_map = Mag(args.target_mag)
-    
+
     upsample_mag(
         args.path,
         args.layer_name,
