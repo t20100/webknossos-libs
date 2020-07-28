@@ -82,7 +82,7 @@ def create_parser():
 
     parser.add_argument(
         "--target_mag",
-        help="Specify an explicit  target magnification (e.g., --target_mag 16-16-4)."
+        help="Specify an explicit  target magnification (e.g., --target_mag 16-16-4).",
         type=str,
         required=True
     )
@@ -120,7 +120,7 @@ def upsample(
     args=None,
 ):
 
-    assert source_mag < target_mag
+    assert source_mag > target_mag
     logging.info("Upsampling mag {} from mag {}".format(target_mag, source_mag))
 
     mag_factors = [
@@ -306,7 +306,7 @@ def linear_filter_3d(data, factors, order):
     assert not any((d % factor > 0 for d in ds))
     return zoom(
         data,
-        1 / factor,
+        factor,
         output=data.dtype,
         # 0: nearest
         # 1: bilinear
