@@ -4,12 +4,11 @@ import math
 import wkw
 import numpy as np
 from argparse import ArgumentParser
-import os
 from scipy.ndimage.interpolation import zoom
 from itertools import product
 from enum import Enum
 from .mag import Mag
-from .metadata import read_datasource_properties, refresh_metadata
+from .metadata import refresh_metadata
 
 from .utils import (
     add_verbose_flag,
@@ -22,7 +21,6 @@ from .utils import (
     add_interpolation_flag,
     get_executor_for_args,
     wait_and_ensure_success,
-    add_isotropic_flag,
     setup_logging,
     cube_addresses,
 )
@@ -341,7 +339,7 @@ def upsample_mag(
     buffer_edge_len=None,
     args=None,
 ):
-    interpolation_mode = parse_interpolation_mode(interpolation_mode, layer_name)
+    interpolation_mode = parse_interpolation_mode(interpolation_mode)
 
     source_wkw_info = WkwDatasetInfo(path, layer_name, source_mag.to_layer_name(), None)
     with open_wkw(source_wkw_info) as source:
@@ -364,7 +362,7 @@ def upsample_mag(
     )
 
 
-def parse_interpolation_mode(interpolation_mode, layer_name):
+def parse_interpolation_mode(interpolation_mode):
     if interpolation_mode.upper() == "DEFAULT":
         return InterpolationModes.NEAREST
     else:
