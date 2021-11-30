@@ -9,6 +9,7 @@ from .convert_knossos import (
     create_parser as create_knossos_parser,
 )
 from .convert_nifti import main as convert_nifti, create_parser as create_nifti_parser
+from .convert_raw import main as convert_raw, create_parser as create_raw_parser
 from .cubing import (
     cubing as cube_image_stack,
     create_parser as create_image_stack_parser,
@@ -516,6 +517,36 @@ class ImageStackConverter(Converter):
             ] = split_path[-2]
 
 
+class RawConverter(Converter):
+    def accepts_input(self, source_path: str) -> bool:
+        source_files = get_source_files(source_path, {".raw", ".vol"}, True)
+        self.source_files = source_files
+        return len(source_files) == 1
+
+    def convert_input(self, args: Namespace) -> bool:
+        logger.info("Converting raw dataset")
+        assert len(self.source_files) == 1
+
+        # add missing config attributes with defaults
+        raw_parser = create_raw_parser()
+        if not hasattr(args, "shape"):
+            logger.info("Try to find data shape from .info file")
+        if not hasattr(args, "dtype"):
+            logger.info("Try to find dtype from file size and data shape")
+        put_default_from_argparser_if_not_present(args, raw_parser, "dtype")
+        put_default_from_argparser_if_not_present(args, raw_parser, "shape")
+        put_default_from_argparser_if_not_present(args, raw_parser, "verbose")
+
+        source_file = Path(self.source_files[0])
+        layer_name = path.splitext(source_file.name)[0]
+        args.layer_name = layer_name
+        args.source_path = source_file
+
+        convert_raw(args)
+
+        return True
+
+
 class ConverterManager:
     def __init__(self) -> None:
         self.converter: List[Converter] = [
@@ -523,6 +554,7 @@ class ConverterManager:
             NiftiConverter(),
             KnossosConverter(),
             ImageStackConverter(),
+            RawConverter(),
         ]
 
 

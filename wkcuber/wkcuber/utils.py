@@ -69,6 +69,13 @@ def parse_padding(padding_str: str) -> Tuple[int, ...]:
         raise argparse.ArgumentTypeError("The padding could not be parsed") from e
 
 
+def parse_shape(shape: str) -> Tuple[float, ...]:
+    try:
+        return tuple(int(x) for x in shape.split(","))
+    except Exception as e:
+        raise argparse.ArgumentTypeError("The shape could not be parsed") from e
+
+
 def open_knossos(info: KnossosDatasetInfo) -> KnossosDataset:
     return KnossosDataset.open(info.dataset_path, np.dtype(info.dtype))
 
