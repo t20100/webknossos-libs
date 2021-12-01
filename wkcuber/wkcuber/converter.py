@@ -535,6 +535,8 @@ class RawConverter(Converter):
             logger.info("Try to find dtype from file size and data shape")
         put_default_from_argparser_if_not_present(args, raw_parser, "dtype")
         put_default_from_argparser_if_not_present(args, raw_parser, "shape")
+        put_default_from_argparser_if_not_present(args, raw_parser, "order")
+        put_default_from_argparser_if_not_present(args, raw_parser, "flip_axes")
         put_default_from_argparser_if_not_present(args, raw_parser, "verbose")
 
         source_file = Path(self.source_files[0])

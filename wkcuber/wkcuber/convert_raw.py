@@ -1,10 +1,10 @@
-from argparse import ArgumentParser, Namespace
+import argparse
 import logging
 import os.path
 from pathlib import Path
 import re
 import time
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 import numpy as np
 
 from webknossos.dataset.defaults import DEFAULT_WKW_FILE_LEN
@@ -20,8 +20,18 @@ from wkcuber.utils import (
 logger = logging.getLogger(__name__)
 
 
-def create_parser() -> ArgumentParser:
-    parser = ArgumentParser()
+def parse_flip_axes(flip_axes: str) -> Tuple[int, ...]:
+    try:
+        indices = tuple(int(x) for x in flip_axes.split(","))
+    except Exception as e:
+        raise argparse.ArgumentTypeError("The flip_axes could not be parsed") from e
+    if [i for i in indices if i < 0 or i > 3]:
+        raise argparse.ArgumentTypeError("The flip_axes contains out-of-bound values")
+    return indices
+
+
+def create_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
 
     parser.add_argument(
         "source_path",
@@ -43,7 +53,7 @@ def create_parser() -> ArgumentParser:
     parser.add_argument(
         "--dtype",
         "-d",
-        help="Target datatype (e.g. uint8, uint16, float32)."
+        help="Target datatype (e.g. uint8, uint16, float32). "
         "If not provided, a guess is made from file size and data shape",
         default=None,
     )
@@ -52,6 +62,25 @@ def create_parser() -> ArgumentParser:
         "--shape",
         help="Shape of the dataset (depth, height, width)",
         type=parse_shape,
+    )
+
+    parser.add_argument(
+        "--order",
+        help="The input data storage layout:"
+        "either 'F' for Fortran-style/column-major order, the default, "
+        "or 'C' for C-style/row-major order. "
+        "Note: Axes are expected in  (x, y, z) order.",
+        choices=("C", "F"),
+        default="F",
+    )
+
+    parser.add_argument(
+        "--flip_axes",
+        help="The axes which should be flipped. "
+        "Input format is a comma separated list of axis indices. "
+        "For example, 1,2,3 will flip the x, y and z axes.",
+        default=None,
+        type=parse_flip_axes,
     )
 
     add_scale_flag(parser, required=False)
@@ -78,7 +107,7 @@ def get_shape_from_vol_info_file(filepath: Path) -> Optional[Tuple[int, int, int
     for line in f:
         match = regexp.match(line)
         if match is not None:
-            dims[match.group('key')] = int(match.group('value'))
+            dims[match.group("key")] = int(match.group("value"))
     f.close()
 
     missings = set(("NUM_X", "NUM_Y", "NUM_Z")) - set(dims.keys())
@@ -108,26 +137,35 @@ def convert_raw(
     layer_name: str,
     dtype: Optional[str] = None,
     shape: Optional[Tuple[int, int, int]] = None,
+    order: str = "C",
     scale: Optional[Tuple[float, float, float]] = (1.0, 1.0, 1.0),
+    flip_axes: Optional[Union[int, Tuple[int, ...]]] = None,
     file_len: int = DEFAULT_WKW_FILE_LEN,
 ) -> None:
+    assert order in ("C", "F")
     ref_time = time.time()
 
     if shape is None:
         shape = get_shape_from_vol_info_file(source_raw_path)
         if shape is None:
-            logger.error("No shape provided and cannot guess it")
+            logger.error("No input data shape provided and cannot guess it")
             return
         logger.info(f"Using data shape: {shape}")
 
     if dtype is None:
         dtype = get_dtype_from_file_size(source_raw_path, shape)
         if dtype is None:
-            logger.error("No dtype provided and cannot guess it")
+            logger.error("No input data dtype provided and cannot guess it")
             return
         logger.info(f"Using dtype: {dtype}")
 
-    cube_data = np.memmap(source_raw_path, dtype=dtype, mode="r", shape=shape)
+    # Axes are understood as x,y,z ordered
+    cube_data = np.memmap(
+        source_raw_path, dtype=dtype, mode="r", shape=(1,) + shape, order=order
+    )
+
+    if flip_axes:
+        cube_data = np.flip(cube_data, flip_axes)
 
     if scale is None:
         scale = 1.0, 1.0, 1.0
@@ -146,7 +184,7 @@ def convert_raw(
     )
 
 
-def main(args: Namespace) -> None:
+def main(args: argparse.Namespace) -> None:
     source_path = args.source_path
 
     if source_path.is_dir():
@@ -159,7 +197,9 @@ def main(args: Namespace) -> None:
         args.layer_name,
         args.dtype,
         args.shape,
+        args.order,
         args.scale,
+        args.flip_axes,
     )
 
 
