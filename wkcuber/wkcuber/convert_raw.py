@@ -51,9 +51,9 @@ def create_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--dtype",
+        "--input_dtype",
         "-d",
-        help="Target datatype (e.g. uint8, uint16, float32). "
+        help="Input dataset datatype (e.g. uint8, uint16, float32). "
         "If not provided, a guess is made from file size and data shape",
         default=None,
     )
@@ -135,7 +135,7 @@ def convert_raw(
     source_raw_path: Path,
     target_path: Path,
     layer_name: str,
-    dtype: Optional[str] = None,
+    input_dtype: Optional[str] = None,
     shape: Optional[Tuple[int, int, int]] = None,
     order: str = "C",
     scale: Optional[Tuple[float, float, float]] = (1.0, 1.0, 1.0),
@@ -152,16 +152,16 @@ def convert_raw(
             return
         logger.info(f"Using data shape: {shape}")
 
-    if dtype is None:
-        dtype = get_dtype_from_file_size(source_raw_path, shape)
-        if dtype is None:
+    if input_dtype is None:
+        input_dtype = get_dtype_from_file_size(source_raw_path, shape)
+        if input_dtype is None:
             logger.error("No input data dtype provided and cannot guess it")
             return
-        logger.info(f"Using dtype: {dtype}")
+        logger.info(f"Using dtype: {input_dtype}")
 
     # Axes are understood as x,y,z ordered
     cube_data = np.memmap(
-        source_raw_path, dtype=dtype, mode="r", shape=(1,) + shape, order=order
+        source_raw_path, dtype=input_dtype, mode="r", shape=(1,) + shape, order=order
     )
 
     if flip_axes:
@@ -173,7 +173,7 @@ def convert_raw(
     wk_layer = wk_ds.get_or_add_layer(
         layer_name,
         "color",
-        dtype_per_layer=np.dtype(dtype),
+        dtype_per_layer=np.dtype(input_dtype),
         num_channels=1,
     )
     wk_mag = wk_layer.get_or_add_mag("1", file_len=file_len)
@@ -195,7 +195,7 @@ def main(args: argparse.Namespace) -> None:
         source_path,
         args.target_path,
         args.layer_name,
-        args.dtype,
+        args.input_dtype,
         args.shape,
         args.order,
         args.scale,

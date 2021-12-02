@@ -531,9 +531,9 @@ class RawConverter(Converter):
         raw_parser = create_raw_parser()
         if not hasattr(args, "shape"):
             logger.info("Try to find data shape from .info file")
-        if not hasattr(args, "dtype"):
-            logger.info("Try to find dtype from file size and data shape")
-        put_default_from_argparser_if_not_present(args, raw_parser, "dtype")
+        if not hasattr(args, "input_dtype"):
+            logger.info("Try to find dataset dtype from file size and data shape")
+        put_default_from_argparser_if_not_present(args, raw_parser, "input_dtype")
         put_default_from_argparser_if_not_present(args, raw_parser, "shape")
         put_default_from_argparser_if_not_present(args, raw_parser, "order")
         put_default_from_argparser_if_not_present(args, raw_parser, "flip_axes")

@@ -17,10 +17,10 @@ for DTYPE in "uint8" "float32"; do
     echo "NUM_Y = 128" >> $INPUT_FILE.info
     echo "NUM_X = 128" >> ${INPUT_FILE}.info
 
-    echo "* with --dtype, --shape and --scale"
+    echo "* with --input_dtype, --shape and --scale"
     python -m wkcuber.convert_raw \
     --layer_name $NAME \
-    --dtype $DTYPE \
+    --input_dtype $DTYPE \
     --shape 128,128,128 \
     --scale 11.24,11.24,25 \
     $INPUT_FILE $OUTPUT_DIR_1
@@ -29,7 +29,7 @@ for DTYPE in "uint8" "float32"; do
     [ $(find $OUTPUT_DIR_1/$NAME/1 -mindepth 3 -name "*.wkw" | wc -l) -eq 1 ]
     [ -e $OUTPUT_DIR_1/datasource-properties.json ]
 
-    echo "* without --dtype, --shape and --scale"
+    echo "* without --input_dtype, --shape and --scale"
     python -m wkcuber.convert_raw \
     --layer_name $NAME \
     $INPUT_FILE $OUTPUT_DIR_2
