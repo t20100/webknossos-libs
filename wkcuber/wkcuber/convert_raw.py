@@ -60,7 +60,7 @@ def create_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--shape",
-        help="Shape of the dataset (depth, height, width)",
+        help="Shape of the dataset (width, height, depth)",
         type=parse_shape,
     )
 
@@ -81,6 +81,13 @@ def create_parser() -> argparse.ArgumentParser:
         "For example, 1,2,3 will flip the x, y and z axes.",
         default=None,
         type=parse_flip_axes,
+    )
+
+    parser.add_argument(
+        "--no_compress",
+        help="Don't compress saved data",
+        default=False,
+        action="store_true",
     )
 
     add_scale_flag(parser, required=False)
@@ -141,6 +148,7 @@ def convert_raw(
     scale: Optional[Tuple[float, float, float]] = (1.0, 1.0, 1.0),
     flip_axes: Optional[Union[int, Tuple[int, ...]]] = None,
     file_len: int = DEFAULT_WKW_FILE_LEN,
+    compress: bool = True,
 ) -> None:
     assert order in ("C", "F")
     ref_time = time.time()
@@ -176,7 +184,7 @@ def convert_raw(
         dtype_per_layer=np.dtype(input_dtype),
         num_channels=1,
     )
-    wk_mag = wk_layer.get_or_add_mag("1", file_len=file_len)
+    wk_mag = wk_layer.get_or_add_mag("1", file_len=file_len, compress=compress)
     wk_mag.write(cube_data)
 
     logger.debug(
@@ -200,6 +208,7 @@ def main(args: argparse.Namespace) -> None:
         args.order,
         args.scale,
         args.flip_axes,
+        compress=not args.no_compress,
     )
 
 

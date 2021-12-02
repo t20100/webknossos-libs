@@ -537,6 +537,7 @@ class RawConverter(Converter):
         put_default_from_argparser_if_not_present(args, raw_parser, "shape")
         put_default_from_argparser_if_not_present(args, raw_parser, "order")
         put_default_from_argparser_if_not_present(args, raw_parser, "flip_axes")
+        put_default_from_argparser_if_not_present(args, raw_parser, "no_compress")
         put_default_from_argparser_if_not_present(args, raw_parser, "verbose")
 
         source_file = Path(self.source_files[0])
